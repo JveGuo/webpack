@@ -135,7 +135,7 @@ module.exports = {
     port: 8080,
     proxy: {
       '/api/*': {
-      target: 'http://wmake.com.cn:8080',
+      target: 'http://xxxx.com.cn:8080',
       changeOrigin: true,
       secure: false
       }
