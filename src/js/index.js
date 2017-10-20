@@ -1,4 +1,4 @@
-require('../css/a.css');
+require('../css/index.css');
 
 require('../common/com');
 
