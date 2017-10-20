@@ -1,36 +1,34 @@
 var path = require('path');
 var webpack = require('webpack');
+var glob = require('glob');
+var WebpackDevServer = require('webpack-dev-server');
+/*
+extract-text-webpack-plugin插件，
+有了它就可以将你的样式提取到单独的css文件里，
+妈妈再也不用担心样式会被打包到js文件里了。
+ */
+var ExtractTextPlugin = require('extract-text-webpack-plugin');
 var HtmlWebpackPlugin = require('html-webpack-plugin');
-var CopyWebpackPlugin = require('copy-webpack-plugin'); // 文件拷贝
-var OpenBrowserPlugin = require('open-browser-webpack-plugin');//自动打开浏览器
-var ExtractTextPlugin = require("extract-text-webpack-plugin");
 
-module.exports = {
-  entry: {
-    index: './src/js/index.js',
-    a: './src/js/a.js',
-    b: './src/js/b.js',
-  },
+var OpenBrowserPlugin = require('open-browser-webpack-plugin');//自动打开浏览器
+
+var entries = getEntry('src/js/*.js', 'src/js/');
+var commonsChunk = getCommonsChunk('src/js/*.js', 'src/js/');
+var config = {
+  entry: entries,
   output: {
-    path: path.join(__dirname, './dist'),
-    // publicPath: '/www.baidu.com/', // 指定资源文件引用的目录，也就是说用这个路径指代path，页面中应该要引用的路径全部改为'baidu'
-    // filename: 'bundle.js', // 指定打包为一个文件 bundle.js
-    filename: 'js/[name]-[hash:6].bundle.js'
+    path: path.join(__dirname, './dist'), //输出目录的配置，模板、样式、脚本、图片等资源的路径配置都相对于它
+    //publicPath: './dist/',              //模板、样式、脚本、图片等资源对应的server上的路径
+    filename: 'js/[name]-[hash:6].js',           //每个页面对应的主js的生成配置
+    chunkFilename: 'js/[id].chunk.js'   //chunk生成的配置
   },
-   module: {
-      /* 在webpack2.0 以后版本 -loader不可省略 */
-    rules: [
-      {
-        test: /\.html$/,
-        use: [
-          {
-            loader: 'html-withimg-loader'     //解决html里src路径找不到问题
-          }
-        ]
-      },
+  module: {
+    rules: [ //加载器，关于各个加载器的参数配置，可自行搜索之。
       {
         test: /\.css$/,
-        use:ExtractTextPlugin.extract({
+        //配置css的抽取器、加载器。'-loader'可以省去
+        // loader: ExtractTextPlugin.extract('style-loader', 'css-loader')
+        use: ExtractTextPlugin.extract({
           fallback: 'style-loader',
           use: [
             {
@@ -39,7 +37,7 @@ module.exports = {
             {
               loader: 'postcss-loader',     // 处理浏览器兼容
               options: {
-                plugins: function() {
+                plugins: function () {
                   return [
                     require('autoprefixer')
                   ];
@@ -48,97 +46,169 @@ module.exports = {
             }
           ]
         })
-        // use:[
-        //   'style-loader',
-        //   {
-        //     loader: 'css-loader',
-        //     options: {
-        //       importLoaders: 1
-        //       // modules: true // 设置css模块化,详情参考https://github.com/css-modules/css-modules
-        //     }
-        //   },
-        //   {
-        //     loader: 'postcss-loader',
-        //     // 在这里进行配置，也可以在postcss.config.js中进行配置，详情参考https://github.com/postcss/postcss-loader
-        //     options: {
-        //       plugins: function() {
-        //         return [
-        //           require('autoprefixer')
-        //         ];
-        //       }
-        //     }
-        //   }
-        // ]
       },
+      // {
+      //   test: /\.less$/,
+      //   //配置less的抽取器、加载器。中间!有必要解释一下，
+      //   //根据从右到左的顺序依次调用less、css加载器，前一个的输出是后一个的输入
+      //   loader: ExtractTextPlugin.extract('css!less')
+      // },
       {
-        test: /\.(png|jpg|gif|svg)$/i,
+				test: /\.(html|tpl)$/,
+				use: ['html-loader']
+			},
+      {
+        //文件加载器，处理文件静态资源
+        test: /\.(woff|woff2|ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         use: [
           {
-            loader: 'url-loader',   //加载url-loader 同时安装 file-loader;
+            loader: 'file-loader',
             options: {
-              //小于20Kb的图片文件转base64到css里,当然css文件体积更大;
-              limit: 20000,
-              //设置最终img路径;
-              name: 'img/[name]-[hash:5].[ext]'
+              name: 'fonts/[path][name].[ext]'
             }
-          },
-          {
-            loader: 'img-loader'
           }
         ]
-      }
+      },
+      {
+        //视频加载
+        test: /\.(mp4|flv|swf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        use: [
+          {
+            loader: 'file-loader',
+            options: {
+              name: 'resource/[path][name].[ext]'
+            }
+          }
+        ]
+      },
+      {
+        //图片文件
+				test: /\.(png|jpg|gif)$/,
+				use: ['url-loader?limit=8192&name=img/[name].[hash:6].[ext]']
+      },
+      {
+        //字体文件
+				test: /\.(eot|woff|ttf)$/,
+				use: ['url-loader?limit=8192&name=font/[name].[hash:16].[ext]']
+			}
     ]
   },
-  plugins: [
-    new HtmlWebpackPlugin({
-      template: './src/index.html', // 模版文件
-      filename: 'index.html',       // 打包后文件名
-      chunks: ['index','a'],         // 应用的入口文件
-      minify: { //压缩HTML文件
-        removeComments: true,//移除HTML中的注释
-        collapseWhitespace: true //删除空白符与换行符
-      }
-    }),
-    new HtmlWebpackPlugin({
-      template: './src/a.html', // 模版文件
-      filename: 'a.html',
-      chunks: ['a','b']
-    }),
-    new HtmlWebpackPlugin({
-      template: './src/b.html', // 模版文件
-      filename: 'b.html',
-      chunks: ['b']
-    }),
-    new webpack.HotModuleReplacementPlugin(), // 热加载插件
-    new webpack.optimize.UglifyJsPlugin({ // js压缩
-      compress: {
-        warnings: false
-      }
-    }),
-    new ExtractTextPlugin("css/../[name]-[hash:6].css"),    //将cssloader 提取成link引入
-    // new CopyWebpackPlugin([              //文件拷贝
-    //   {from: './src/plugins', to: './plugins'}
-    // ]),
-    new webpack.ProvidePlugin({             //npm install jquery --save-dev
-      $: "jquery",
-      jQuery: "jquery",
-      "window.jQuery": "jquery"
-    }),
-    new OpenBrowserPlugin({                 //编译完成后自动打开浏览器
-      url: 'http://localhost:8080'
-    })
-  ],
+  //使用webpack-dev-server，提高开发效率
   devServer: {
-    contentBase: "./", // 本地服务器所加载的页面所在的目录
-    historyApiFallback: true, // 不跳转
-    inline: true, // 实时刷新
-    port: 8080,
+    historyApiFallback: true,
+    contentBase: './dist',
+    host: 'localhost',
+    //progress: true,//报错无法识别，删除后也能正常刷新
+    port: 9090,
+    inline: true,
+    // hot: true,
     proxy: {
       '/api/*': {
-      target: 'http://xxxx.com.cn:8080',
-      changeOrigin: true,
-      secure: false
+        target: 'http://xxx.com.cn:8080',
+        changeOrigin: true,
+        secure: false
       }
     }
+  },
+  plugins: [
+    // new webpack.ProvidePlugin({ //加载jq
+    //   $: 'jquery',
+    //   jQuery: "jquery",
+    //   "window.jQuery": "jquery"
+    // }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'common', // 将公共模块提取，生成名为`vendors`的chunk
+      chunks: commonsChunk, //提取哪些模块共有的部分
+      minChunks: commonsChunk.length // 提取至少3个模块共有的部分
+    }),
+    new ExtractTextPlugin('css/[name]-[hash:6].css'), //单独使用link标签加载css并设置路径，相对于output配置中的publickPath
+    //HtmlWebpackPlugin，模板生成相关的配置，每个对于一个页面的配置，有几个写几个
+    // new HtmlWebpackPlugin({ //根据模板插入css/js等生成最终HTML
+    //   // favicon: './src/img/favicon.ico', //favicon路径，通过webpack引入同时可以生成hash值
+    //   filename: './index.html', //生成的html存放路径，相对于path
+    //   template: './src/index.html', //html模板路径
+    //   inject: 'body', //js插入的位置，true/'head'/'body'/false
+    //   hash: true, //为静态资源生成hash值
+    //   chunks: ['common', 'index'],//需要引入的chunk，不配置就会引入所有页面的资源
+    //   minify: { //压缩HTML文件
+    //     removeComments: true, //移除HTML中的注释
+    //     collapseWhitespace: false //删除空白符与换行符
+    //   }
+    // }),
+    new OpenBrowserPlugin({                 //编译完成后自动打开浏览器
+      url: 'http://localhost:9090'
+    }),
+    new webpack.HotModuleReplacementPlugin() //热加载
+  ]
+};
+
+var viesObj = getView('src/*.html', 'src/')
+var pages = Object.keys(viesObj);
+pages.forEach(function (pathname) {
+  var htmlName = viesObj[pathname]
+  var conf = {
+    filename: htmlName + '.html', //生成的html存放路径，相对于path
+    template: './src/' + htmlName + '.html', //html模板路径
+    inject: 'body', //js插入的位置，true/'head'/'body'/false
+    //favicon: './src/img/favicon.ico', //favicon路径，通过webpack引入同时可以生成hash值
+    chunks: ['common', htmlName],//需要引入的chunk，不配置就会引入所有页面的资源
+    minify: { //压缩HTML文件
+      removeComments: true, //移除HTML中的注释
+      collapseWhitespace: false //删除空白符与换行符
+    }
+  };
+  config.plugins.push(new HtmlWebpackPlugin(conf));
+});
+
+
+module.exports = config;
+
+function getView (globPath, pathDir) {
+  var files = glob.sync(globPath);
+  var entries = {},
+    entry, dirname, basename, pathname, extname;
+
+  for (var i = 0; i < files.length; i++) {
+    entry = files[i];
+    dirname = path.dirname(entry);
+
+    extname = path.extname(entry);
+    basename = path.basename(entry, extname);
+    pathname = path.join(dirname, basename);
+    pathname = pathDir ? pathname.replace(new RegExp('^' + pathDir), '') : pathname;
+    entries[pathname] = basename;
   }
+  return entries;
+}
+
+
+function getEntry (globPath, pathDir) {
+  var files = glob.sync(globPath);
+  var entries = {},
+    entry, dirname, basename, pathname, extname;
+
+  for (var i = 0; i < files.length; i++) {
+    entry = files[i];
+    dirname = path.dirname(entry);
+    extname = path.extname(entry);
+    basename = path.basename(entry, extname);
+    pathname = path.join(dirname, basename);
+    entries[basename] = './' + entry;
+  }
+  return entries;
+}
+
+function getCommonsChunk (globPath, pathDir) {
+  var files = glob.sync(globPath);
+  var entries = [],
+    entry, dirname, basename, extname;
+
+  for (var i = 0; i < files.length; i++) {
+    entry = files[i];
+    dirname = path.dirname(entry);
+    extname = path.extname(entry);
+    basename = path.basename(entry, extname);
+    entries.push(basename);
+  }
+  return entries;
 }
