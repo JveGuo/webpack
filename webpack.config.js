@@ -33,7 +33,10 @@ var config = {
           publicPath: '../',
           use: [
             {
-              loader: 'css-loader'
+              loader: 'css-loader',
+              //options: {
+              //  minimize: true //css压缩
+              //}
             },
             {
               loader: 'postcss-loader',     // 处理浏览器兼容
@@ -122,6 +125,12 @@ var config = {
       chunks: commonsChunk, //提取哪些模块共有的部分
       minChunks: commonsChunk.length // 提取至少3个模块共有的部分
     }),
+    // js压缩 ----- 生产环境打开  开发环境打开速率慢
+    // new webpack.optimize.UglifyJsPlugin({
+    //   compress: {
+    //     warnings: false
+    //   }
+    // }),
     new ExtractTextPlugin('css/[name]-[hash:6].css'), //单独使用link标签加载css并设置路径，相对于output配置中的publickPath
     //HtmlWebpackPlugin，模板生成相关的配置，每个对于一个页面的配置，有几个写几个
     // new HtmlWebpackPlugin({ //根据模板插入css/js等生成最终HTML
