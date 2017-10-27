@@ -5,4 +5,4 @@
 >开发环境
 
 #### 生成dist文件
-> 运行webpack-p
+> 运行webpack
