@@ -4,14 +4,11 @@ var glob = require('glob');
 var WebpackDevServer = require('webpack-dev-server');
 /*
 extract-text-webpack-plugin插件，
-有了它就可以将你的样式提取到单独的css文件里，
-妈妈再也不用担心样式会被打包到js文件里了。
+有了它就可以将你的样式提取到单独的css文件里
  */
 var ExtractTextPlugin = require('extract-text-webpack-plugin');
 var HtmlWebpackPlugin = require('html-webpack-plugin');
-
 var OpenBrowserPlugin = require('open-browser-webpack-plugin');//自动打开浏览器
-
 var entries = getEntry('src/js/*.js', 'src/js/');
 var commonsChunk = getCommonsChunk('src/js/*.js', 'src/js/');
 var config = {
@@ -24,19 +21,26 @@ var config = {
   },
   module: {
     rules: [ //加载器，关于各个加载器的参数配置，可自行搜索之。
+      // {
+      //   test: /\.js$/,
+      //   loader: 'babel-loader',
+      //   exclude: path.resolve(__dirname, "./node_modules"),
+      //   include: path.resolve(__dirname, "./src"),
+      //   options: {
+      //     'presets': ['env']
+      //   }
+      // },
       {
         test: /\.css$/,
-        //配置css的抽取器、加载器。'-loader'可以省去
-        // loader: ExtractTextPlugin.extract('style-loader', 'css-loader')
         use: ExtractTextPlugin.extract({
           fallback: 'style-loader',
           publicPath: '../',
           use: [
             {
               loader: 'css-loader',
-              //options: {
-              //  minimize: true //css压缩
-              //}
+              options: {
+               minimize: true //css压缩
+              }
             },
             {
               loader: 'postcss-loader',     // 处理浏览器兼容
@@ -102,10 +106,8 @@ var config = {
     historyApiFallback: true,
     contentBase: './dist',
     host: 'localhost',
-    //progress: true,//报错无法识别，删除后也能正常刷新
     port: 9090,
     inline: true,
-    // hot: true,
     proxy: {
       '/api/*': {
         target: 'http://xxx.com.cn',
@@ -127,24 +129,15 @@ var config = {
     }),
     // js压缩 ----- 生产环境打开  开发环境打开速率慢
     // new webpack.optimize.UglifyJsPlugin({
+    //   beautify: false,
+    //   comments: false,
     //   compress: {
-    //     warnings: false
+    //     warnings: false,
+    //     drop_console: true
     //   }
     // }),
     new ExtractTextPlugin('css/[name]-[hash:6].css'), //单独使用link标签加载css并设置路径，相对于output配置中的publickPath
     //HtmlWebpackPlugin，模板生成相关的配置，每个对于一个页面的配置，有几个写几个
-    // new HtmlWebpackPlugin({ //根据模板插入css/js等生成最终HTML
-    //   // favicon: './src/img/favicon.ico', //favicon路径，通过webpack引入同时可以生成hash值
-    //   filename: './index.html', //生成的html存放路径，相对于path
-    //   template: './src/index.html', //html模板路径
-    //   inject: 'body', //js插入的位置，true/'head'/'body'/false
-    //   hash: true, //为静态资源生成hash值
-    //   chunks: ['common', 'index'],//需要引入的chunk，不配置就会引入所有页面的资源
-    //   minify: { //压缩HTML文件
-    //     removeComments: true, //移除HTML中的注释
-    //     collapseWhitespace: false //删除空白符与换行符
-    //   }
-    // }),
     new OpenBrowserPlugin({                 //编译完成后自动打开浏览器
       url: 'http://localhost:9090'
     }),
